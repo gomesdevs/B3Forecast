@@ -4,7 +4,11 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import os
-import tensorflow as tf
+try:
+    import tensorflow as tf
+except ModuleNotFoundError:
+    st.error("Erro: A biblioteca 'tensorflow' não foi instalada corretamente. Verifique o requirements.txt e os logs do Streamlit Cloud para mais detalhes.")
+    st.stop()
 from data_collection import fetch_stock_data, get_available_tickers
 from preprocessing import prepare_data, split_data
 from model import build_lstm_model, train_model, predict
