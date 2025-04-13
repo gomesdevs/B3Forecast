@@ -30,7 +30,7 @@ B3Forecast is a machine learning application that predicts short-term trends for
 ### Installation
 ```bash
 # Clone this repository
-git clone https://github.com/yourusername/b3forecast.git
+git clone https://github.com/gomesdevs/b3forecast.git
 
 # Navigate to the project directory
 cd b3forecast
