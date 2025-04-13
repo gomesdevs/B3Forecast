@@ -8,18 +8,6 @@ import os
 
 @st.cache_data
 def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None, retries: int = 3) -> tuple:
-    """
-    Coleta dados históricos de uma ação da B3 com retentativas e fallback.
-    
-    Args:
-        ticker: Código da ação (ex.: 'PETR4.SA')
-        start_date: Data inicial (formato 'YYYY-MM-DD')
-        end_date: Data final (formato 'YYYY-MM-DD')
-        retries: Número de tentativas em caso de falha
-    
-    Returns:
-        Tuple: (DataFrame com dados, mensagem de erro se houver)
-    """
     original_ticker = ticker
     if not ticker.endswith('.SA'):
         ticker += '.SA'
@@ -38,14 +26,15 @@ def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None, 
         return pd.DataFrame(), f"O período especificado ({start_date} a {end_date}) não contém dias úteis."
 
     # Tentar coletar dados do Yahoo Finance
-    tickers_to_try = [ticker, original_ticker]  # Tenta com e sem .SA
+    tickers_to_try = [ticker, original_ticker]
     for t in tickers_to_try:
         for attempt in range(retries):
             try:
                 stock = yf.Ticker(t)
                 df = stock.history(start=start_date, end=end_date)
                 if df.empty:
-                    break  # Se o DataFrame estiver vazio, tenta o próximo ticker
+                    st.warning(f"Dados vazios retornados para {t} no período {start_date} a {end_date}.")
+                    break
                 df.reset_index(inplace=True)
                 df['Date'] = pd.to_datetime(df['Date'])
                 return df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']], None
@@ -53,7 +42,7 @@ def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None, 
                 if attempt < retries - 1:
                     time.sleep(2)
                     continue
-                st.warning(f"Erro ao coletar dados para {t} após {retries} tentativas: {str(e)}. Tentando outra variação do ticker...")
+                st.warning(f"Erro ao coletar dados para {t} após {retries} tentativas: {str(e)}.")
 
     # Fallback: usar dados locais se disponíveis
     fallback_file = f"{original_ticker}_historical.csv"
@@ -61,7 +50,6 @@ def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None, 
         try:
             df = pd.read_csv(fallback_file)
             df['Date'] = pd.to_datetime(df['Date'])
-            # Filtrar pelo período solicitado
             df = df[(df['Date'] >= start) & (df['Date'] <= end)]
             if df.empty:
                 return pd.DataFrame(), f"Dados locais para {original_ticker} não cobrem o período especificado ({start_date} a {end_date})."
@@ -72,7 +60,4 @@ def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None, 
     return pd.DataFrame(), f"Sem dados disponíveis para {original_ticker} no período especificado ({start_date} a {end_date}) e nenhum dado local encontrado."
 
 def get_available_tickers() -> list:
-    """
-    Retorna uma lista de tickers populares da B3.
-    """
     return ['PETR4', 'VALE3', 'ITUB4', 'BBDC4', 'ABEV3']
