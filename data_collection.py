@@ -7,7 +7,7 @@ import requests
 @st.cache_data
 def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None) -> tuple:
     """
-    Coleta dados históricos de uma ação usando a API do Alpha Vantage.
+    Coleta dados históricos de uma ação usando a API do EODHD.
     
     Args:
         ticker: Código da ação (ex.: 'PETR4.SA')
@@ -17,9 +17,9 @@ def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None) 
     Returns:
         Tuple: (DataFrame com dados, mensagem de erro se houver)
     """
-    # Configuração da API do Alpha Vantage
-    API_KEY = "YOUR_API_KEY"  # Substitua por sua chave API
-    BASE_URL = "https://www.alphavantage.co/query"
+    # Configuração da API do EODHD
+    API_KEY = "67fbec3a8b3891.80065862"  # Sua chave API do EODHD
+    BASE_URL = "https://eodhd.com/api/eod"
 
     if not ticker.endswith('.SA'):
         ticker += '.SA'
@@ -39,50 +39,46 @@ def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None) 
 
     # Parâmetros da requisição
     params = {
-        "function": "TIME_SERIES_DAILY",
-        "symbol": ticker,
-        "outputsize": "full",  
-        "apikey": KBOIXH9LTSSOR4KY
+        "api_token": API_KEY,
+        "fmt": "json",
+        "from": start_date,
+        "to": end_date
     }
 
     try:
         # Fazer a requisição à API
-        response = requests.get(BASE_URL, params=params)
+        url = f"{BASE_URL}/{ticker}"
+        response = requests.get(url, params=params)
         response.raise_for_status()  # Levanta uma exceção para erros HTTP
         data = response.json()
 
-        # Verificar se há erro na resposta
-        if "Error Message" in data:
-            return pd.DataFrame(), f"Erro na API do Alpha Vantage: {data['Error Message']}"
-        if "Time Series (Daily)" not in data:
-            return pd.DataFrame(), f"Dados não disponíveis para {ticker} no período especificado ({start_date} a {end_date})."
-
-        # Converter os dados para DataFrame
-        time_series = data["Time Series (Daily)"]
-        df = pd.DataFrame.from_dict(time_series, orient='index')
-        df = df.rename(columns={
-            "1. open": "Open",
-            "2. high": "High",
-            "3. low": "Low",
-            "4. close": "Close",
-            "5. volume": "Volume"
-        })
-        df.index = pd.to_datetime(df.index)
-        df = df.astype(float)
-
-        # Filtrar pelo período solicitado
-        df = df[(df.index >= start) & (df.index <= end)]
-        if df.empty:
+        # Verificar se a resposta contém dados
+        if not data:
+            st.warning(f"Dados vazios retornados para {ticker} no período {start_date} a {end_date}.")
             return pd.DataFrame(), f"Dados vazios para {ticker} no período especificado ({start_date} a {end_date})."
 
-        # Reorganizar colunas e resetar índice
-        df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
-        df.reset_index(inplace=True)
-        df.rename(columns={'index': 'Date'}, inplace=True)
+        # Converter os dados para DataFrame
+        df = pd.DataFrame(data)
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.rename(columns={
+            "date": "Date",
+            "open": "Open",
+            "high": "High",
+            "low": "Low",
+            "close": "Close",
+            "volume": "Volume"
+        })
 
-        return df, None
+        # Filtrar pelo período solicitado (embora a API já deva ter feito isso)
+        df = df[(df['Date'] >= start) & (df['Date'] <= end)]
+        if df.empty:
+            st.warning(f"Dados vazios retornados para {ticker} no período {start_date} a {end_date} após filtragem.")
+            return pd.DataFrame(), f"Dados vazios para {ticker} no período especificado ({start_date} a {end_date})."
+
+        return df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']], None
 
     except Exception as e:
+        st.warning(f"Erro ao coletar dados para {ticker}: {str(e)}")
         return pd.DataFrame(), f"Erro ao coletar dados para {ticker}: {str(e)}"
 
 def get_available_tickers() -> list:
