@@ -22,7 +22,7 @@ start_date = st.sidebar.date_input("Data Inicial", pd.to_datetime(start_date))
 end_date = st.sidebar.date_input("Data Final", pd.to_datetime(end_date))
 
 # Validar a data final
-current_date = pd.to_datetime("2025-04-12")
+current_date = pd.to_datetime("2025-04-13")  # Data atual
 if end_date > current_date.date():
     st.sidebar.warning(f"A data final foi ajustada para {current_date.date()} (data atual).")
     end_date = current_date.date()
