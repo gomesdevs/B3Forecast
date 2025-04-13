@@ -1,17 +1,29 @@
 # data_collection.py
-import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 import streamlit as st
-import time
-import os
+import requests
 
 @st.cache_data
-def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None, retries: int = 3) -> tuple:
-    original_ticker = ticker
+def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None) -> tuple:
+    """
+    Coleta dados históricos de uma ação usando a API do Alpha Vantage.
+    
+    Args:
+        ticker: Código da ação (ex.: 'PETR4.SA')
+        start_date: Data inicial (formato 'YYYY-MM-DD')
+        end_date: Data final (formato 'YYYY-MM-DD')
+    
+    Returns:
+        Tuple: (DataFrame com dados, mensagem de erro se houver)
+    """
+    # Configuração da API do Alpha Vantage
+    API_KEY = "YOUR_API_KEY"  # Substitua por sua chave API
+    BASE_URL = "https://www.alphavantage.co/query"
+
     if not ticker.endswith('.SA'):
         ticker += '.SA'
-    
+
     if not start_date:
         start_date = (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')
     if not end_date:
@@ -25,39 +37,56 @@ def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None, 
     if business_days == 0:
         return pd.DataFrame(), f"O período especificado ({start_date} a {end_date}) não contém dias úteis."
 
-    # Tentar coletar dados do Yahoo Finance
-    tickers_to_try = [ticker, original_ticker]
-    for t in tickers_to_try:
-        for attempt in range(retries):
-            try:
-                stock = yf.Ticker(t)
-                df = stock.history(start=start_date, end=end_date)
-                if df.empty:
-                    st.warning(f"Dados vazios retornados para {t} no período {start_date} a {end_date}.")
-                    break
-                df.reset_index(inplace=True)
-                df['Date'] = pd.to_datetime(df['Date'])
-                return df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']], None
-            except Exception as e:
-                if attempt < retries - 1:
-                    time.sleep(2)
-                    continue
-                st.warning(f"Erro ao coletar dados para {t} após {retries} tentativas: {str(e)}.")
+    # Parâmetros da requisição
+    params = {
+        "function": "TIME_SERIES_DAILY",
+        "symbol": ticker,
+        "outputsize": "full",  
+        "apikey": KBOIXH9LTSSOR4KY
+    }
 
-    # Fallback: usar dados locais se disponíveis
-    fallback_file = f"{original_ticker}_historical.csv"
-    if os.path.exists(fallback_file):
-        try:
-            df = pd.read_csv(fallback_file)
-            df['Date'] = pd.to_datetime(df['Date'])
-            df = df[(df['Date'] >= start) & (df['Date'] <= end)]
-            if df.empty:
-                return pd.DataFrame(), f"Dados locais para {original_ticker} não cobrem o período especificado ({start_date} a {end_date})."
-            return df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']], None
-        except Exception as e:
-            return pd.DataFrame(), f"Erro ao carregar dados locais para {original_ticker}: {str(e)}"
-    
-    return pd.DataFrame(), f"Sem dados disponíveis para {original_ticker} no período especificado ({start_date} a {end_date}) e nenhum dado local encontrado."
+    try:
+        # Fazer a requisição à API
+        response = requests.get(BASE_URL, params=params)
+        response.raise_for_status()  # Levanta uma exceção para erros HTTP
+        data = response.json()
+
+        # Verificar se há erro na resposta
+        if "Error Message" in data:
+            return pd.DataFrame(), f"Erro na API do Alpha Vantage: {data['Error Message']}"
+        if "Time Series (Daily)" not in data:
+            return pd.DataFrame(), f"Dados não disponíveis para {ticker} no período especificado ({start_date} a {end_date})."
+
+        # Converter os dados para DataFrame
+        time_series = data["Time Series (Daily)"]
+        df = pd.DataFrame.from_dict(time_series, orient='index')
+        df = df.rename(columns={
+            "1. open": "Open",
+            "2. high": "High",
+            "3. low": "Low",
+            "4. close": "Close",
+            "5. volume": "Volume"
+        })
+        df.index = pd.to_datetime(df.index)
+        df = df.astype(float)
+
+        # Filtrar pelo período solicitado
+        df = df[(df.index >= start) & (df.index <= end)]
+        if df.empty:
+            return pd.DataFrame(), f"Dados vazios para {ticker} no período especificado ({start_date} a {end_date})."
+
+        # Reorganizar colunas e resetar índice
+        df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+        df.reset_index(inplace=True)
+        df.rename(columns={'index': 'Date'}, inplace=True)
+
+        return df, None
+
+    except Exception as e:
+        return pd.DataFrame(), f"Erro ao coletar dados para {ticker}: {str(e)}"
 
 def get_available_tickers() -> list:
+    """
+    Retorna uma lista de tickers populares da B3.
+    """
     return ['PETR4', 'VALE3', 'ITUB4', 'BBDC4', 'ABEV3']
