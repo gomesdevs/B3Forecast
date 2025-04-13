@@ -8,7 +8,18 @@ import os
 
 @st.cache_data
 def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None, retries: int = 3) -> tuple:
-
+    """
+    Coleta dados históricos de uma ação da B3 com retentativas e fallback.
+    
+    Args:
+        ticker: Código da ação (ex.: 'PETR4.SA')
+        start_date: Data inicial (formato 'YYYY-MM-DD')
+        end_date: Data final (formato 'YYYY-MM-DD')
+        retries: Número de tentativas em caso de falha
+    
+    Returns:
+        Tuple: (DataFrame com dados, mensagem de erro se houver)
+    """
     original_ticker = ticker
     if not ticker.endswith('.SA'):
         ticker += '.SA'
@@ -61,4 +72,7 @@ def fetch_stock_data(ticker: str, start_date: str = None, end_date: str = None, 
     return pd.DataFrame(), f"Sem dados disponíveis para {original_ticker} no período especificado ({start_date} a {end_date}) e nenhum dado local encontrado."
 
 def get_available_tickers() -> list:
+    """
+    Retorna uma lista de tickers populares da B3.
+    """
     return ['PETR4', 'VALE3', 'ITUB4', 'BBDC4', 'ABEV3']
