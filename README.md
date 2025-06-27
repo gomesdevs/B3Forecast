@@ -183,9 +183,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙋‍♂️ Support
 
-- 📧 **Email**: [support@b3forecast.com](mailto:support@b3forecast.com)
 - 💬 **Issues**: [GitHub Issues](https://github.com/gomesdevs/b3forecast/issues)
-- 📚 **Documentation**: [Wiki](https://github.com/gomesdevs/b3forecast/wiki)
 
 ---
 
